@@ -3,37 +3,53 @@
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import { 
   IconArmchair, 
   IconBath, 
   IconBed, 
   IconBolt, 
-  IconChartPie, 
   IconChefHat, 
-  IconSun, 
-  IconLeaf 
+  IconPlus, 
+  IconSun 
 } from "@tabler/icons-react"
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
+import { toast } from "sonner"
 
-// Helper para definir a cor baseada no consumo
+// --- Componentes Auxiliares ---
+
 const getConsumptionColor = (level: "low" | "medium" | "high") => {
   if (level === "high") return "text-red-500 bg-red-500/10 border-red-200";
   if (level === "medium") return "text-yellow-500 bg-yellow-500/10 border-yellow-200";
   return "text-green-500 bg-green-500/10 border-green-200";
 }
 
-// Componente de botão de cômodo focado em LEITURA
-function RoomButton({ 
+function RoomCard({ 
   name, 
+  slug, 
   icon: Icon, 
   className, 
-  consumption, // Ex: "450 W"
-  cost,        // Ex: "R$ 0,45/h"
+  consumption, 
+  cost, 
   level = "low" 
 }: { 
   name: string; 
+  slug: string;
   icon: any; 
   className?: string; 
   consumption: string;
@@ -41,27 +57,23 @@ function RoomButton({
   level?: "low" | "medium" | "high"
 }) {
   return (
-    <button
-      onClick={() => toast.info(`Consumo em ${name}`, {
-        description: `Gasto atual: ${consumption} (${cost}). O consumo está dentro do esperado para este horário.`,
-      })}
+    <Link 
+      href={`/dashboard/comodos/${slug}`}
       className={cn(
         "group relative flex flex-col items-center justify-center gap-2 rounded-xl border border-muted-foreground/20 bg-card p-6 transition-all hover:shadow-md hover:scale-[1.01] active:scale-[0.99]",
         className
       )}
     >
-      {/* Ícone com cor indicativa de nível de consumo */}
       <div className={cn(
         "flex size-12 items-center justify-center rounded-full transition-colors",
-        getConsumptionColor(level).split(" ")[1], // Pega apenas o bg
-        getConsumptionColor(level).split(" ")[0]  // Pega apenas o text
+        getConsumptionColor(level).split(" ")[1], 
+        getConsumptionColor(level).split(" ")[0]
       )}>
         <Icon className="size-6" />
       </div>
 
       <div className="text-center">
         <h3 className="font-semibold text-foreground">{name}</h3>
-        {/* Mostra o Consumo em destaque */}
         <div className="mt-1 flex items-center justify-center gap-1">
           <IconBolt className="size-3 text-muted-foreground" /> 
           <span className="text-sm font-bold">{consumption}</span>
@@ -69,21 +81,28 @@ function RoomButton({
         <p className="text-[10px] text-muted-foreground mt-0.5">Est. {cost}</p>
       </div>
       
-      {/* Indicador de Status (Ponto colorido) */}
       <span className={cn(
         "absolute top-4 right-4 flex size-2.5 rounded-full",
         level === "high" ? "bg-red-500" : level === "medium" ? "bg-yellow-500" : "bg-green-500"
       )}>
-        {/* Animação apenas se o consumo for alto */}
         {level === "high" && (
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
         )}
       </span>
-    </button>
+    </Link>
   )
 }
 
-export default function Page() {
+// --- Página Principal ---
+
+export default function ComodosPage() {
+  function handleAddRoom(e: React.FormEvent) {
+    e.preventDefault()
+    toast.success("Cômodo adicionado!", {
+      description: "O novo ambiente já pode ser monitorado."
+    })
+  }
+
   return (
     <SidebarProvider
       style={
@@ -99,25 +118,71 @@ export default function Page() {
         
         <div className="flex flex-1 flex-col gap-8 p-6 md:p-10">
           
-          <div className="flex flex-col gap-2">
-            <h1 className="text-3xl font-bold tracking-tight">Monitoramento de Energia</h1>
-            <p className="text-muted-foreground">
-              Acompanhe em tempo real onde sua energia está sendo gasta.
-            </p>
+          {/* Cabeçalho com Botão de Adicionar (Sheet) */}
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2">
+              <h1 className="text-3xl font-bold tracking-tight">Gerenciar Cômodos</h1>
+              <p className="text-muted-foreground">
+                Visualize e controle seus ambientes.
+              </p>
+            </div>
+            
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button className="gap-2">
+                  <IconPlus className="size-4" /> Adicionar Cômodo
+                </Button>
+              </SheetTrigger>
+              <SheetContent>
+                <SheetHeader>
+                  <SheetTitle>Novo Cômodo</SheetTitle>
+                  <SheetDescription>
+                    Adicione um novo ambiente para monitoramento de energia.
+                  </SheetDescription>
+                </SheetHeader>
+                <form onSubmit={handleAddRoom} className="grid gap-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nome</Label>
+                    <Input id="name" placeholder="Ex: Escritório" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="type">Tipo</Label>
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="living">Sala</SelectItem>
+                        <SelectItem value="bedroom">Quarto</SelectItem>
+                        <SelectItem value="kitchen">Cozinha</SelectItem>
+                        <SelectItem value="bathroom">Banheiro</SelectItem>
+                        <SelectItem value="other">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="limit">Limite de Consumo (W)</Label>
+                    <Input id="limit" type="number" placeholder="Ex: 500" />
+                  </div>
+                  <SheetFooter className="mt-4">
+                    <SheetClose asChild>
+                      <Button type="submit">Salvar</Button>
+                    </SheetClose>
+                  </SheetFooter>
+                </form>
+              </SheetContent>
+            </Sheet>
           </div>
 
-          {/* Planta Baixa de Consumo */}
+          {/* Grid de Cômodos */}
           <Card className="overflow-hidden bg-muted/30 border-none shadow-none">
-            <CardHeader className="px-0 pt-0">
-              <CardTitle className="text-lg">Mapa de Calor da Residência</CardTitle>
-            </CardHeader>
             <CardContent className="px-0">
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:grid-rows-3 h-[600px] w-full">
                 
-                {/* Sala - Consumo Médio (TV, Luzes) */}
                 <div className="col-span-2 row-span-2">
-                   <RoomButton 
+                   <RoomCard 
                       name="Sala de Estar" 
+                      slug="sala-de-estar"
                       icon={IconArmchair} 
                       consumption="350 W"
                       cost="R$ 0,32/h"
@@ -126,22 +191,22 @@ export default function Page() {
                    />
                 </div>
 
-                {/* Cozinha - Consumo Alto (Geladeira, Forno, Microondas) */}
                 <div className="col-span-1 row-span-2">
-                  <RoomButton 
+                  <RoomCard 
                       name="Cozinha" 
+                      slug="cozinha"
                       icon={IconChefHat} 
                       consumption="1.2 kW"
                       cost="R$ 1,10/h"
                       level="high"
-                      className="h-full w-full border-red-200 bg-red-50 dark:bg-red-950/20" // Destaque visual extra
+                      className="h-full w-full border-red-200 bg-red-50 dark:bg-red-950/20"
                    />
                 </div>
 
-                {/* Banheiro - Consumo Baixo (Vazio/Luz desligada) */}
                 <div className="col-span-1 row-span-1">
-                   <RoomButton 
+                   <RoomCard 
                       name="Banheiro" 
+                      slug="banheiro"
                       icon={IconBath} 
                       consumption="0 W"
                       cost="R$ 0,00/h"
@@ -150,10 +215,10 @@ export default function Page() {
                    />
                 </div>
 
-                {/* Quarto - Consumo Baixo (Carregador, ventilador) */}
                 <div className="col-span-1 row-span-1">
-                   <RoomButton 
+                   <RoomCard 
                       name="Suíte Master" 
+                      slug="suite-master"
                       icon={IconBed} 
                       consumption="80 W"
                       cost="R$ 0,08/h"
@@ -162,10 +227,10 @@ export default function Page() {
                    />
                 </div>
 
-                {/* Área Externa - Consumo Médio (Filtro piscina ou luzes jardim) */}
                 <div className="col-span-2 md:col-span-4 row-span-1">
-                   <RoomButton 
+                   <RoomCard 
                       name="Área Externa" 
+                      slug="area-externa"
                       icon={IconSun} 
                       consumption="400 W"
                       cost="R$ 0,38/h"
@@ -177,43 +242,6 @@ export default function Page() {
               </div>
             </CardContent>
           </Card>
-
-          {/* KPIs de Consumo */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Consumo Instantâneo</CardTitle>
-                <IconBolt className="h-4 w-4 text-yellow-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">2.03 kW</div>
-                <p className="text-xs text-muted-foreground">Pico registrado às 19:30</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Custo Acumulado (Mês)</CardTitle>
-                <IconChartPie className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">R$ 245,30</div>
-                <p className="text-xs text-muted-foreground">Previsão de fechar em R$ 320,00</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Eficiência</CardTitle>
-                <IconLeaf className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">Boa</div>
-                <p className="text-xs text-muted-foreground">-15% comparado ao mês passado</p>
-              </CardContent>
-            </Card>
-          </div>
-
         </div>
       </SidebarInset>
     </SidebarProvider>
