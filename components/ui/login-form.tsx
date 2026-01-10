@@ -54,7 +54,9 @@ export function LoginForm({
                   className="bg-[var(--primary-color)] hover:bg-slate-950"
                   type="submit"
                 >
-                  <a href="/dashboard">Login</a>
+                  <a className="w-full" href="/dashboard">
+                    Login
+                  </a>
                 </Button>
               </Field>
               <FieldDescription className="text-center">
