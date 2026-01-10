@@ -1,85 +1,35 @@
-"use client"
-
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { AppSidebar } from "@/components/app-sidebar";
+import { SiteHeader } from "@/components/site-header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
-  IconArmchair, 
-  IconBath, 
-  IconBed, 
   IconBolt, 
-  IconChartPie, 
-  IconChefHat, 
-  IconSun, 
-  IconLeaf 
-} from "@tabler/icons-react"
-import { toast } from "sonner"
-import { cn } from "@/lib/utils"
+  IconTrendingUp,
+  IconArmchair,
+  IconChefHat,
+  IconBath,
+  IconBed,
+  IconSun,
+  IconAlertTriangle,
+  IconChartBar
+} from "@tabler/icons-react";
+import { cn } from "@/lib/utils";
 
-// Helper para definir a cor baseada no consumo
-const getConsumptionColor = (level: "low" | "medium" | "high") => {
-  if (level === "high") return "text-red-500 bg-red-500/10 border-red-200";
-  if (level === "medium") return "text-yellow-500 bg-yellow-500/10 border-yellow-200";
-  return "text-green-500 bg-green-500/10 border-green-200";
-}
-
-// Componente de botão de cômodo focado em LEITURA
-function RoomButton({ 
-  name, 
-  icon: Icon, 
-  className, 
-  consumption, // Ex: "450 W"
-  cost,        // Ex: "R$ 0,45/h"
-  level = "low" 
-}: { 
-  name: string; 
-  icon: any; 
-  className?: string; 
-  consumption: string;
-  cost: string;
-  level?: "low" | "medium" | "high"
-}) {
+// --- Componente MapRoom Atualizado ---
+// Agora aceita 'consumption' e mostra o valor no card
+function MapRoom({ name, icon: Icon, consumption, colorClass, className }: any) {
   return (
-    <button
-      onClick={() => toast.info(`Consumo em ${name}`, {
-        description: `Gasto atual: ${consumption} (${cost}). O consumo está dentro do esperado para este horário.`,
-      })}
-      className={cn(
-        "group relative flex flex-col items-center justify-center gap-2 rounded-xl border border-muted-foreground/20 bg-card p-6 transition-all hover:shadow-md hover:scale-[1.01] active:scale-[0.99]",
-        className
-      )}
-    >
-      {/* Ícone com cor indicativa de nível de consumo */}
-      <div className={cn(
-        "flex size-12 items-center justify-center rounded-full transition-colors",
-        getConsumptionColor(level).split(" ")[1], // Pega apenas o bg
-        getConsumptionColor(level).split(" ")[0]  // Pega apenas o text
-      )}>
-        <Icon className="size-6" />
+    <div className={cn("flex flex-col items-center justify-center gap-1.5 rounded-lg border bg-muted/20 p-4 text-center transition-colors hover:bg-muted/40", className)}>
+      <div className={cn("flex size-8 items-center justify-center rounded-full bg-background shadow-sm mb-1", colorClass)}>
+        <Icon className="size-4" />
       </div>
-
-      <div className="text-center">
-        <h3 className="font-semibold text-foreground">{name}</h3>
-        {/* Mostra o Consumo em destaque */}
-        <div className="mt-1 flex items-center justify-center gap-1">
-          <IconBolt className="size-3 text-muted-foreground" /> 
-          <span className="text-sm font-bold">{consumption}</span>
-        </div>
-        <p className="text-[10px] text-muted-foreground mt-0.5">Est. {cost}</p>
+      <span className="text-xs font-medium text-muted-foreground leading-none">{name}</span>
+      {/* Exibição do Consumo na Planta */}
+      <div className="flex items-center gap-1 mt-1 bg-background/50 px-2 py-0.5 rounded-full border border-black/5 dark:border-white/5">
+        <IconBolt className="size-3 text-foreground/70" />
+        <span className="text-sm font-bold text-foreground">{consumption}</span>
       </div>
-      
-      {/* Indicador de Status (Ponto colorido) */}
-      <span className={cn(
-        "absolute top-4 right-4 flex size-2.5 rounded-full",
-        level === "high" ? "bg-red-500" : level === "medium" ? "bg-yellow-500" : "bg-green-500"
-      )}>
-        {/* Animação apenas se o consumo for alto */}
-        {level === "high" && (
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
-        )}
-      </span>
-    </button>
+    </div>
   )
 }
 
@@ -100,122 +50,114 @@ export default function Page() {
         <div className="flex flex-1 flex-col gap-8 p-6 md:p-10">
           
           <div className="flex flex-col gap-2">
-            <h1 className="text-3xl font-bold tracking-tight">Monitoramento de Energia</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Visão Geral da Residência</h1>
             <p className="text-muted-foreground">
-              Acompanhe em tempo real onde sua energia está sendo gasta.
+              Monitoramento de consumo energético por ambiente.
             </p>
           </div>
 
-          {/* Planta Baixa de Consumo */}
-          <Card className="overflow-hidden bg-muted/30 border-none shadow-none">
-            <CardHeader className="px-0 pt-0">
-              <CardTitle className="text-lg">Mapa de Calor da Residência</CardTitle>
+          {/* KPIs Gerais */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Consumo Atual</CardTitle>
+                <IconBolt className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">2.45 kW</div>
+                <p className="text-xs text-muted-foreground">Somatório de todos os cômodos</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Custo Estimado (Mês)</CardTitle>
+                <IconTrendingUp className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">R$ 280,50</div>
+                <p className="text-xs text-muted-foreground">Baseado na tarifa atual</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Maior Gasto Agora</CardTitle>
+                <IconAlertTriangle className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">Cozinha</div>
+                <p className="text-xs text-muted-foreground">Representa 48% do total</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Média Diária</CardTitle>
+                <IconChartBar className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">18 kWh</div>
+                <p className="text-xs text-muted-foreground">Estável vs. semana passada</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Planta Baixa com Consumo */}
+          <Card className="col-span-4">
+            <CardHeader>
+              <CardTitle>Planta da Casa</CardTitle>
+              <CardDescription>Visualização do consumo em tempo real por cômodo.</CardDescription>
             </CardHeader>
-            <CardContent className="px-0">
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:grid-rows-3 h-[600px] w-full">
-                
-                {/* Sala - Consumo Médio (TV, Luzes) */}
-                <div className="col-span-2 row-span-2">
-                   <RoomButton 
-                      name="Sala de Estar" 
-                      icon={IconArmchair} 
-                      consumption="350 W"
-                      cost="R$ 0,32/h"
-                      level="medium"
-                      className="h-full w-full"
-                   />
-                </div>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:grid-rows-2 h-[400px] w-full">
+                  
+                  <MapRoom 
+                    name="Sala de Estar" 
+                    icon={IconArmchair}
+                    consumption="350 W" 
+                    className="col-span-2 row-span-2 bg-blue-50/50 dark:bg-blue-900/10"
+                    colorClass="text-blue-500"
+                  />
 
-                {/* Cozinha - Consumo Alto (Geladeira, Forno, Microondas) */}
-                <div className="col-span-1 row-span-2">
-                  <RoomButton 
-                      name="Cozinha" 
-                      icon={IconChefHat} 
-                      consumption="1.2 kW"
-                      cost="R$ 1,10/h"
-                      level="high"
-                      className="h-full w-full border-red-200 bg-red-50 dark:bg-red-950/20" // Destaque visual extra
-                   />
-                </div>
+                  <MapRoom 
+                    name="Cozinha" 
+                    icon={IconChefHat}
+                    consumption="1.2 kW" 
+                    className="col-span-1 row-span-2 bg-orange-50/50 dark:bg-orange-900/10"
+                    colorClass="text-orange-500"
+                  />
 
-                {/* Banheiro - Consumo Baixo (Vazio/Luz desligada) */}
-                <div className="col-span-1 row-span-1">
-                   <RoomButton 
-                      name="Banheiro" 
-                      icon={IconBath} 
-                      consumption="0 W"
-                      cost="R$ 0,00/h"
-                      level="low"
-                      className="h-full w-full opacity-70"
-                   />
-                </div>
+                  <MapRoom 
+                    name="Suíte Master" 
+                    icon={IconBed}
+                    consumption="80 W" 
+                    className="col-span-1 row-span-1 bg-purple-50/50 dark:bg-purple-900/10"
+                    colorClass="text-purple-500"
+                  />
 
-                {/* Quarto - Consumo Baixo (Carregador, ventilador) */}
-                <div className="col-span-1 row-span-1">
-                   <RoomButton 
-                      name="Suíte Master" 
-                      icon={IconBed} 
-                      consumption="80 W"
-                      cost="R$ 0,08/h"
-                      level="low"
-                      className="h-full w-full"
-                   />
-                </div>
-
-                {/* Área Externa - Consumo Médio (Filtro piscina ou luzes jardim) */}
-                <div className="col-span-2 md:col-span-4 row-span-1">
-                   <RoomButton 
-                      name="Área Externa" 
-                      icon={IconSun} 
-                      consumption="400 W"
-                      cost="R$ 0,38/h"
-                      level="medium"
-                      className="h-full w-full flex-row gap-6"
-                   />
-                </div>
-
+                  <div className="col-span-1 row-span-1 grid grid-cols-2 gap-4">
+                     <MapRoom 
+                        name="Banheiro" 
+                        icon={IconBath}
+                        consumption="0 W" 
+                        className="col-span-1 bg-cyan-50/50 dark:bg-cyan-900/10"
+                        colorClass="text-cyan-500"
+                      />
+                       <MapRoom 
+                        name="Jardim" 
+                        icon={IconSun}
+                        consumption="400 W" 
+                        className="col-span-1 bg-green-50/50 dark:bg-green-900/10"
+                        colorClass="text-green-500"
+                      />
+                  </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* KPIs de Consumo */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Consumo Instantâneo</CardTitle>
-                <IconBolt className="h-4 w-4 text-yellow-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">2.03 kW</div>
-                <p className="text-xs text-muted-foreground">Pico registrado às 19:30</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Custo Acumulado (Mês)</CardTitle>
-                <IconChartPie className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">R$ 245,30</div>
-                <p className="text-xs text-muted-foreground">Previsão de fechar em R$ 320,00</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Eficiência</CardTitle>
-                <IconLeaf className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">Boa</div>
-                <p className="text-xs text-muted-foreground">-15% comparado ao mês passado</p>
-              </CardContent>
-            </Card>
-          </div>
-
         </div>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }
