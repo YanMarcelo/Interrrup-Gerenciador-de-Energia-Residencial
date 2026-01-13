@@ -1,36 +1,10 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+⚡ Interrup - Gerenciador de Energia Residencial(Substitua este link por uma captura de tela real do seu Dashboard)Monitoramento inteligente de consumo elétrico com IoT e Dashboard moderno.O Interrup é uma solução completa de IoT (Internet das Coisas) para monitoramento de energia elétrica em tempo real. Ele combina um hardware baseado em ESP32 (para leitura de sensores) com uma interface web moderna em Next.js, permitindo que o usuário visualize o consumo (Watts), tensão (Volts) e corrente (Amperes), além de gerenciar cômodos e visualizar históricos de consumo.🚀 Funcionalidades📊 Dashboard em Tempo Real: Visualização instantânea de potência, tensão e corrente.🔌 Integração IoT: Leitura direta de sensores via ESP32 com comunicação Wi-Fi.🏠 Gerenciamento de Cômodos: Crie, edite e exclua áreas da casa (Sala, Cozinha, Quarto).📈 Gráficos Dinâmicos: Histórico de consumo diário (00h às 23h) que preenche conforme o tempo passa.⚠️ Sistema de Alertas: Notificação visual automática quando o consumo ultrapassa níveis seguros/econômicos.🔄 Modo Híbrido: O sistema funciona conectado ao sensor ou em Modo Simulação (gera dados matemáticos caso o hardware esteja desconectado).📱 Design Responsivo: Interface adaptada para Desktop e Mobile.🛠️ Tecnologias UtilizadasFrontend (Aplicação Web)Framework: Next.js 14+ (App Router)Linguagem: TypeScriptEstilização: Tailwind CSSComponentes UI: Shadcn/uiÍcones: Tabler IconsGerenciamento de Estado: React Context APIHardware & FirmwareMicrocontrolador: ESP32 (Dual Core)Framework: Arduino / PlatformIOBibliotecas:EmonLib: Cálculos RMS de tensão e corrente.FreeRTOS: Gerenciamento de multitarefa (Wi-Fi no Core 0, Medição no Core 1).WebServer: API RESTful JSON.📦 Hardware NecessárioPara montar a parte física do projeto, você precisará de:ComponenteFunçãoESP32 DevKit V1Cérebro do sistema e conexão Wi-Fi.Sensor SCT-013-000Transformador de corrente não invasivo (até 100A).Sensor ZMPT101BMódulo sensor de tensão AC.Resistores/CapacitoresPara o circuito de offset (tensão DC) do SCT-013.Fonte 5VPara alimentar o ESP32 (via USB).Pinagem (Configuração Padrão)Pino 34 (ADC1): Leitura do Sensor de Corrente (SCT-013).Pino 35 (ADC1): Leitura do Sensor de Tensão (ZMPT101B).Nota: Utilizamos pinos do ADC1 pois o ADC2 é desativado quando o Wi-Fi do ESP32 está em uso.⚙️ Instalação e Configuração1. Configurando o Firmware (ESP32)Instale o VS Code e a extensão PlatformIO.Abra a pasta do firmware e localize o arquivo main.cpp (ou src/main.cpp).Edite as credenciais Wi-Fi:C++const char* ssid = "NOME_DA_SUA_REDE";
+const char* password = "SENHA_DA_SUA_REDE";
+Conecte o ESP32 via USB e clique em Upload (Seta →).Abra o Monitor Serial e anote o IP exibido (Ex: 192.168.1.15).2. Configurando o Frontend (Site)Clone este repositório:Bashgit clone https://github.com/seu-usuario/interrup.git
+cd interrup
+Instale as dependências:Bashnpm install
+# ou
+yarn install
+Configure o IP do ESP32:Abra o arquivo contexts/room-context.tsx.Localize a constante ESP32_IP e insira o IP anotado anteriormente:TypeScriptconst ESP32_IP = "http://192.168.1.15";
+Rode o projeto:Bashnpm run dev
+Acesse http://localhost:3000 no seu navegador.🧠 Arquitetura do SistemaO projeto utiliza uma arquitetura desacoplada onde o ESP32 atua como uma API REST, e o Frontend atua como o cliente consumidor.Multitarefa (ESP32):Task 1 (Core 1): Realiza leituras analógicas pesadas (calcVI) a cada segundo.Task 2 (Core 0): Mantém o servidor Web ativo e responde requisições HTTP.Mutex: Garante que os dados não sejam corrompidos durante a leitura/escrita simultânea.Ciclo de Dados (Frontend):O RoomContext faz polling (busca automática) na rota /api/leitura a cada 2 segundos.Se o ESP32 responder, os dados reais são exibidos.Se o ESP32 não responder (timeout/erro), o sistema entra em Modo Simulação, gerando dados fictícios para fins de demonstração.
