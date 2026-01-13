@@ -1,33 +1,22 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useMemo } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { 
-  IconArrowLeft, 
-  IconBolt, 
-  IconAlertCircle, 
-  IconArmchair, 
-  IconBath, 
-  IconBed, 
-  IconChefHat, 
-  IconSun, 
-  IconBox,
-  IconTrash,
-  IconActivity,
-  IconLoader2,
-  IconTrendingUp,
-  IconTrendingDown
+  IconArrowLeft, IconBolt, IconAlertCircle, IconArmchair, IconBath, IconBed, 
+  IconChefHat, IconSun, IconBox, IconTrash, IconLoader2, 
+  IconTrendingUp, IconTrendingDown, IconWifi, IconWifiOff, IconClock
 } from "@tabler/icons-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useRooms } from "@/contexts/room-context"
 import { cn } from "@/lib/utils"
 
-// --- Helpers Visuais ---
+// Helpers Visuais
 const getIconByType = (type: string) => {
   switch (type) {
     case "living": return IconArmchair;
@@ -38,7 +27,6 @@ const getIconByType = (type: string) => {
     default: return IconBox;
   }
 }
-
 const getRoomTypeColor = (type: string) => {
   switch (type) {
     case "living": return "text-blue-500 bg-blue-500/10 border-blue-200/50";
@@ -53,76 +41,51 @@ const getRoomTypeColor = (type: string) => {
 export default function RoomDetailPage() {
   const { slug } = useParams()
   const router = useRouter()
-  const { getRoomBySlug, removeRoom, isLoading } = useRooms()
+  const { getRoomBySlug, removeRoom, isLoading, sensorData } = useRooms()
   
-  // --- ESTADO PARA DADOS REAIS DO ESP32 ---
-  const [realData, setRealData] = useState({
-    tensao: 0,
-    corrente: 0,
-    potencia: 0
-  })
+  // Estado para armazenar o "Passado" fixo (para não ficar piscando)
+  const [pastData, setPastData] = useState<number[]>([]);
 
-  // -------------------------------------------------------------
-  // CONFIGURAÇÃO DO ESP32
-  // Troque pelo IP que aparece no Monitor Serial do Arduino
-  // Mantenha o "http://" antes do número.
-  // -------------------------------------------------------------
-  const ESP32_IP = "http://192.168.1.15"; // <--- ALTERE AQUI O SEU IP
-
-  // EFEITO DE POLLING (Busca dados a cada 2 segundos)
+  // 1. Gera o histórico do passado apenas UMA vez ao carregar a página
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(`${ESP32_IP}/api/leitura`)
-        if (!response.ok) throw new Error("Falha na conexão")
-        
-        const data = await response.json()
-        console.log("Dados recebidos:", data)
-        
-        setRealData({
-            tensao: data.tensao,
-            corrente: data.corrente,
-            potencia: data.potencia
-        })
-      } catch (error) {
-        console.warn("ESP32 desconectado ou IP incorreto.", error)
-      }
-    }
+    // Cria 24 valores aleatórios para servir de base histórica
+    const staticHistory = Array.from({ length: 24 }).map((_, i) => {
+        // Simula: Madrugada baixo consumo, Noite alto consumo
+        const base = (i > 18 && i < 22) ? 600 : (i > 0 && i < 6) ? 50 : 200; 
+        return Math.floor(Math.random() * 300) + base; 
+    });
+    setPastData(staticHistory);
+  }, []);
 
-    // Chama imediatamente e define intervalo
-    fetchData()
-    const interval = setInterval(fetchData, 2000) // 2000ms = 2 segundos
+  // 2. Monta o Array Final do Gráfico (Passado + Presente + Futuro)
+  const chartData = useMemo(() => {
+    const currentHour = new Date().getHours();
+    
+    return Array.from({ length: 24 }).map((_, hourIndex) => {
+        if (hourIndex < currentHour) {
+            // PASSADO: Usa o dado estático gerado no início
+            return pastData[hourIndex] || 0;
+        } 
+        else if (hourIndex === currentHour) {
+            // PRESENTE: Usa o dado REAL do ESP32
+            return sensorData.potencia;
+        } 
+        else {
+            // FUTURO: Zero (vazio)
+            return 0;
+        }
+    });
+  }, [pastData, sensorData.potencia]); // Recalcula sempre que a potência mudar
 
-    return () => clearInterval(interval)
-  }, [])
-
-
-  // --- Lógica de Renderização ---
   const room = getRoomBySlug(slug as string)
 
-  if (isLoading) {
-    return (
-        <div className="flex h-screen w-full items-center justify-center flex-col gap-4 bg-background">
-            <IconLoader2 className="size-8 animate-spin text-primary" />
-            <p className="text-muted-foreground text-sm font-medium">Carregando sistema...</p>
-        </div>
-    )
-  }
-
-  if (!room) {
-    return (
-        <div className="flex h-screen w-full items-center justify-center flex-col gap-4 bg-muted/10">
-            <h1 className="text-xl font-bold">Cômodo não encontrado</h1>
-            <Button asChild variant="secondary" size="sm"><Link href="/dashboard/comodos">Voltar</Link></Button>
-        </div>
-    )
-  }
+  if (isLoading) return <div className="flex h-screen w-full items-center justify-center"><IconLoader2 className="animate-spin" /></div>
+  if (!room) return <div className="p-10">Cômodo não encontrado. <Link href="/dashboard/comodos">Voltar</Link></div>
 
   const Icon = getIconByType(room.type)
   const colorClass = getRoomTypeColor(room.type)
-  
-  // Define lógica de alerta baseado no consumo real
-  const isHigh = realData.potencia > 400 // Exemplo: Alerta se passar de 400W
+  const isHigh = sensorData.potencia > 800
+  const currentHour = new Date().getHours();
 
   const handleDelete = () => {
       removeRoom(room.id)
@@ -130,160 +93,146 @@ export default function RoomDetailPage() {
   }
 
   return (
-    <SidebarProvider
-      style={{
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)",
-      } as React.CSSProperties}
-    >
+    <SidebarProvider style={{ "--sidebar-width": "18rem", "--header-height": "3rem" } as React.CSSProperties}>
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
         
         <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-6xl mx-auto w-full">
-          
           {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-                <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                    <Link href="/dashboard/comodos">
-                        <IconArrowLeft className="size-4" />
-                    </Link>
-                </Button>
+                <Button variant="ghost" size="icon" asChild><Link href="/dashboard/comodos"><IconArrowLeft className="size-4" /></Link></Button>
                 <div className="flex items-center gap-3">
-                    <div className={cn("flex size-10 items-center justify-center rounded-lg border", colorClass)}>
-                        <Icon className="size-5" />
-                    </div>
+                    <div className={cn("flex size-10 items-center justify-center rounded-lg border", colorClass)}><Icon className="size-5" /></div>
                     <div>
                         <h1 className="text-lg font-bold leading-none">{room.name}</h1>
                         <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-                           <span className="relative flex size-2">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full size-2 bg-green-500"></span>
+                           <span className={cn("relative flex size-2 rounded-full", !sensorData.isConnected ? "bg-orange-400" : "bg-green-500")}>
+                              <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", !sensorData.isConnected ? "bg-orange-400" : "bg-green-500")}></span>
                            </span>
-                           Conectado ao Sensor IoT
+                           {!sensorData.isConnected ? "Simulação Ativa" : "Conectado ao ESP32"}
                         </p>
                     </div>
                 </div>
             </div>
-            
-            <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={handleDelete} 
-                className="text-muted-foreground hover:text-red-500 hover:bg-red-50"
-            >
-                <IconTrash className="size-4 mr-2" /> Excluir
-            </Button>
+            <Button variant="ghost" size="sm" onClick={handleDelete} className="text-muted-foreground hover:text-red-500"><IconTrash className="size-4 mr-2" /> Excluir</Button>
           </div>
 
-          {/* Cards Principais */}
           <div className="grid gap-4 md:grid-cols-2">
-            
-            {/* Card Consumo (DADOS REAIS) */}
+            {/* Card Consumo */}
             <Card className="h-60 flex flex-col justify-between shadow-sm border-muted/60">
                 <CardHeader className="pb-0 pt-6 px-8">
                     <CardTitle className="text-base font-medium text-muted-foreground flex items-center justify-between">
-                        <span>Potência em Tempo Real</span>
+                        <span>Potência Instantânea</span>
                         <IconBolt className="size-5 text-yellow-500" />
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="px-8 pb-6 flex flex-col gap-2 flex-1 justify-center">
                     <div className="flex items-baseline gap-1 mt-2">
-                        {/* Exibindo a Potência Real */}
-                        <span className="text-5xl font-bold tracking-tight">{realData.potencia}</span>
+                        <span className="text-5xl font-bold tracking-tight">{sensorData.potencia}</span>
                         <span className="text-2xl text-muted-foreground font-medium">W</span>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                        Tensão: <strong>{realData.tensao} V</strong> • Corrente: <strong>{realData.corrente} A</strong>
+                        {sensorData.tensao} V • {sensorData.corrente} A
                     </p>
-                    
                     <div className="mt-auto pt-2">
                         <div className="inline-flex items-center gap-1.5 rounded-full bg-yellow-500/10 px-3 py-1 text-xs font-medium text-yellow-600 border border-yellow-500/20">
-                            <IconActivity className="size-3.5" />
-                            <span>Atualizando via Wi-Fi</span>
+                            {!sensorData.isConnected ? <IconWifiOff className="size-3.5" /> : <IconWifi className="size-3.5" />}
+                            <span>{!sensorData.isConnected ? "Modo Offline" : "Sinal Wi-Fi Recebido"}</span>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Card Status (DINÂMICO) */}
+            {/* Card Status */}
             <Card className="h-60 flex flex-col justify-between shadow-sm border-muted/60">
                 <CardHeader className="pb-0 pt-6 px-8">
                     <CardTitle className="text-base font-medium text-muted-foreground flex items-center justify-between">
-                        <span>Status do Circuito</span>
-                        {isHigh ? (
-                             <IconTrendingDown className="size-5 text-red-500" />
-                        ) : (
-                             <IconTrendingUp className="size-5 text-green-500" />
-                        )}
+                        <span>Status Operacional</span>
+                        {isHigh ? <IconTrendingDown className="size-5 text-red-500" /> : <IconTrendingUp className="size-5 text-green-500" />}
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="px-8 pb-6 flex flex-col gap-2 flex-1 justify-center">
                     <div className="flex items-baseline gap-1 mt-2">
-                        <span className={cn("text-5xl font-bold tracking-tight", isHigh ? "text-red-600" : "text-green-600")}>
-                            {isHigh ? "Alerta" : "Normal"}
-                        </span>
+                        <span className={cn("text-5xl font-bold tracking-tight", isHigh ? "text-red-600" : "text-green-600")}>{isHigh ? "Alerta" : "Normal"}</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                        {isHigh ? "Consumo acima de 400W detectado." : "Consumo dentro dos parâmetros seguros."}
-                    </p>
-
+                    <p className="text-sm text-muted-foreground">{isHigh ? "Consumo atípico detectado." : "Dentro da média diária."}</p>
                     <div className="mt-auto pt-2">
-                        <div className={cn(
-                            "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border",
-                            isHigh 
-                                ? "bg-red-500/10 text-red-600 border-red-500/20" 
-                                : "bg-green-500/10 text-green-600 border-green-500/20"
-                        )}>
+                        <div className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border", isHigh ? "bg-red-500/10 text-red-600 border-red-500/20" : "bg-green-500/10 text-green-600 border-green-500/20")}>
                             <IconAlertCircle className="size-3.5" />
-                            <span>{isHigh ? "Verifique Aparelhos" : "Circuito Estável"}</span>
+                            <span>{isHigh ? "Inspecionar Carga" : "Funcionamento Ideal"}</span>
                         </div>
                     </div>
                 </CardContent>
             </Card>
           </div>
           
-          {/* Gráfico Visual (Estético) */}
+          {/* GRÁFICO DIÁRIO (00h - 23h) */}
           <Card className="shadow-sm border-muted/60">
               <CardHeader className="pb-2 border-b border-dashed">
                   <div className="flex items-center justify-between">
                     <div>
-                        <CardTitle className="text-base font-semibold">Perfil de Carga (Simulado)</CardTitle>
-                        <p className="text-xs text-muted-foreground">Histórico das últimas 24 horas.</p>
+                        <CardTitle className="text-base font-semibold">Consumo Diário (00h - 23h)</CardTitle>
+                        <p className="text-xs text-muted-foreground">Monitoramento hora a hora.</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-xs font-medium text-muted-foreground">Hora Atual</p>
+                        <div className="flex items-center gap-1 justify-end text-lg font-bold text-primary">
+                             <IconClock className="size-4" />
+                             {currentHour}:00
+                        </div>
                     </div>
                   </div>
               </CardHeader>
               <CardContent className="pt-6">
-                  <div className="h-[220px] w-full flex items-end gap-1.5 relative">
+                  {/* Container do Gráfico */}
+                  <div className="h-[220px] w-full flex items-end gap-1 relative">
+                      
+                      {/* Grid de Fundo */}
                       <div className="absolute inset-0 flex flex-col justify-between pointer-events-none z-0">
                           <div className="border-t border-dashed border-muted/50 w-full h-px"></div>
                           <div className="border-t border-dashed border-muted/50 w-full h-px"></div>
-                          <div className="border-t border-dashed border-muted/50 w-full h-px"></div>
+                          <div className="border-t border-muted/20 w-full h-px"></div>
                       </div>
 
-                      {Array.from({ length: 24 }).map((_, i) => {
-                          const base = isHigh ? 30 : 10
-                          const height = Math.min(base + Math.random() * 40, 100)
+                      {chartData.map((val, i) => {
+                          const percent = Math.min((val / 1500) * 100, 100);
+                          const isPast = i < currentHour;
+                          const isNow = i === currentHour;
+                          
                           return (
                             <div key={i} className="flex-1 group relative z-10 flex flex-col justify-end h-full">
                                 <div 
                                     className={cn(
-                                        "w-full rounded-t-sm opacity-80 transition-all duration-500",
-                                        isHigh ? "bg-gradient-to-t from-red-500/50 to-red-500" : "bg-gradient-to-t from-blue-500/50 to-blue-500"
+                                        "w-full rounded-sm transition-all duration-500", 
+                                        isPast ? "bg-muted/40 hover:bg-muted/60" : // Passado (Cinza)
+                                        isNow  ? "bg-primary animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]" : // Agora (Azul Brilhante)
+                                        "bg-transparent" // Futuro (Invisível)
                                     )}
-                                    style={{ height: `${height}%` }}
+                                    // Se for futuro, altura 0. Se for presente/passado, altura real.
+                                    style={{ height: val === 0 && !isNow ? "0px" : `${Math.max(percent, 2)}%` }}
                                 ></div>
+                                
+                                {/* Tooltip */}
+                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-[10px] font-bold px-2 py-1 rounded shadow-md opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100 border whitespace-nowrap z-20 pointer-events-none">
+                                    {i}h • {val} W
+                                </div>
+                                
+                                {/* Labels Eixo X (Apenas algumas horas para não poluir) */}
+                                {(i === 0 || i === 6 || i === 12 || i === 18 || i === 23) && (
+                                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] text-muted-foreground font-medium">
+                                        {i}h
+                                    </div>
+                                )}
                             </div>
                           )
                       })}
                   </div>
-                  <div className="flex justify-between mt-3 text-[10px] font-medium text-muted-foreground px-1">
-                      <span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>23h</span>
-                  </div>
+                  {/* Espaço extra para labels */}
+                  <div className="h-6"></div> 
               </CardContent>
           </Card>
-
         </div>
       </SidebarInset>
     </SidebarProvider>
